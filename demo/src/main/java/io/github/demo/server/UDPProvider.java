@@ -8,7 +8,7 @@ import java.util.UUID;
 import io.github.demo.constants.UDPConstants;
 import io.github.demo.lib.ByteUtils;
 
-class ServerProvider {
+class UDPProvider {
     private static Provider PROVIDER_INSTANCE;
 
     static void start(int port) {
@@ -67,7 +67,7 @@ class ServerProvider {
                     boolean isValid = clientDataLen >= (UDPConstants.HEADER.length + 2 + 4)
                             && ByteUtils.startsWith(clientData, UDPConstants.HEADER);
 
-                    System.out.println("ServerProvider receive form ip:" + clientIp
+                    System.out.println("UDPProvider receive form ip:" + clientIp
                             + "\tport:" + clientPort + "\tdataValid:" + isValid);
 
                     if (!isValid) {
@@ -98,9 +98,9 @@ class ServerProvider {
                                 receivePack.getAddress(),
                                 responsePort);
                         ds.send(responsePacket);
-                        System.out.println("ServerProvider response to:" + clientIp + "\tport:" + responsePort + "\tdataLen:" + len);
+                        System.out.println("UDPProvider response to:" + clientIp + "\tport:" + responsePort + "\tdataLen:" + len);
                     } else {
-                        System.out.println("ServerProvider receive cmd nonsupport; cmd:" + cmd + "\tport:" + port);
+                        System.out.println("UDPProvider receive cmd nonsupport; cmd:" + cmd + "\tport:" + port);
                     }
                 }
             } catch (Exception ignored) {

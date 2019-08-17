@@ -6,7 +6,14 @@ import io.github.demo.constants.TCPConstants;
 
 public class Server {
     public static void main(String[] args) {
-        ServerProvider.start(TCPConstants.PORT_SERVER);
+        TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER);
+        boolean isSucceed = tcpServer.start();
+        if (!isSucceed) {
+            System.out.println("Start TCP server failed!");
+            return;
+        }
+
+        UDPProvider.start(TCPConstants.PORT_SERVER);
 
         try {
             //noinspection ResultOfMethodCallIgnored
@@ -15,6 +22,7 @@ public class Server {
             e.printStackTrace();
         }
 
-        ServerProvider.stop();
+        UDPProvider.stop();
+        tcpServer.stop();
     }
 }

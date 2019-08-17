@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import io.github.demo.constants.UDPConstants;
 import io.github.demo.lib.ByteUtils;
 
-public class ClientSearcher {
+public class UDPSearcher {
     private static final int LISTEN_PORT = UDPConstants.PORT_CLIENT_RESPONSE;
 
     public static ServerInfo searchServer(int timeout) {
