@@ -1,11 +1,13 @@
 package io.github.demo.server;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 import io.github.demo.constants.TCPConstants;
 
 public class Server {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER);
         boolean isSucceed = tcpServer.start();
         if (!isSucceed) {
@@ -15,12 +17,12 @@ public class Server {
 
         UDPProvider.start(TCPConstants.PORT_SERVER);
 
-        try {
-            //noinspection ResultOfMethodCallIgnored
-            System.in.read();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+        String str;
+        do{
+            str = bufferedReader.readLine();
+            tcpServer.broadcast(str);
+        }while(!"00bye00".equalsIgnoreCase(str));
 
         UDPProvider.stop();
         tcpServer.stop();
