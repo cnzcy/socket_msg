@@ -10,7 +10,28 @@ import io.github.demo.lib.CloseUtils;
 import io.github.demo.server.handler.ClientHandler;
 
 public class TCPClient {
-    public static void linkWith(ServerInfo info) throws IOException {
+
+    private final Socket socket;
+    private final ReadHandler readHandler;
+    private final PrintStream printStream;
+
+    public TCPClient(Socket socket, ReadHandler readHandler) throws IOException {
+        this.socket = socket;
+        this.readHandler = readHandler;
+        this.printStream = new PrintStream(socket.getOutputStream());
+    }
+
+    public void exit() {
+        readHandler.exit();
+        CloseUtils.close(printStream);
+        CloseUtils.close(socket);
+    }
+
+    public void send(String msg) {
+        printStream.println(msg);
+    }
+
+    public static TCPClient startWith(ServerInfo info) throws IOException {
         Socket socket = new Socket();
         // 超时时间
         socket.setSoTimeout(3000);
@@ -25,48 +46,16 @@ public class TCPClient {
         try {
             ReadHandler readHandler = new ReadHandler(socket.getInputStream());
             readHandler.start();
-            // 发送接收数据
-            write(socket);
-
-            // 退出
-            readHandler.exit();
+            return new TCPClient(socket, readHandler);
         } catch (Exception e) {
-            System.out.println("异常关闭");
+            System.out.println("连接异常");
+            CloseUtils.close(socket);
         }
 
-        // 释放资源
-        socket.close();
-        System.out.println("客户端已退出～");
-
+        return null;
     }
 
-    private static void write(Socket client) throws IOException {
-        // 构建键盘输入流
-        InputStream in = System.in;
-        BufferedReader input = new BufferedReader(new InputStreamReader(in));
-
-
-        // 得到Socket输出流，并转换为打印流
-        OutputStream outputStream = client.getOutputStream();
-        PrintStream socketPrintStream = new PrintStream(outputStream);
-
-        do {
-            // 键盘读取一行
-            String str = input.readLine();
-            // 发送到服务器
-            socketPrintStream.println(str);
-
-            if ("00bye00".equalsIgnoreCase(str)) {
-                break;
-            }
-        } while (true);
-
-        // 资源释放
-        socketPrintStream.close();
-
-    }
-
-    static class ReadHandler extends Thread{
+    static class ReadHandler extends Thread {
 
         private boolean done = false;
         private final InputStream inputStream;
@@ -91,7 +80,7 @@ public class TCPClient {
                     } catch (SocketTimeoutException e) {
                         continue;
                     }
-                    if(str == null){
+                    if (str == null) {
                         // 读取超时，IO异常
                         System.out.println("连接已关闭，无法读取数据");
                         break;
@@ -100,7 +89,7 @@ public class TCPClient {
                     System.out.println(str);
                 } while (!done);
             } catch (Exception e) {
-                if(!done) {
+                if (!done) {
                     System.out.println("连接异常断开" + e.getMessage());
                 }
             } finally {
@@ -109,7 +98,7 @@ public class TCPClient {
             }
         }
 
-        void exit(){
+        void exit() {
             done = true;
             CloseUtils.close(inputStream);
         }
