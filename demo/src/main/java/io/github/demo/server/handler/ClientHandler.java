@@ -16,15 +16,20 @@ public class ClientHandler {
     private final Socket socket;
     private final ClientReadHandler readHandler;
     private final ClientWriteHandler writeHandler;
-    private final CloseNotify closeNotify;
+    private final ClientHandlerCallback clientHandlerCallback;
+    private final String clientInfo;
 
-    public ClientHandler(Socket socket, CloseNotify closeNotify) throws IOException {
+    public ClientHandler(Socket socket, ClientHandlerCallback clientHandlerCallback) throws IOException {
         this.socket = socket;
         readHandler = new ClientReadHandler(socket.getInputStream());
         writeHandler = new ClientWriteHandler(socket.getOutputStream());
-        this.closeNotify = closeNotify;
-        System.out.println("新客户端连接：" + socket.getInetAddress() +
-                " P:" + socket.getPort());
+        this.clientHandlerCallback = clientHandlerCallback;
+        this.clientInfo = "A[" + socket.getInetAddress().getHostAddress() + "] p[" + socket.getPort() + "]";
+        System.out.println("新客户端连接：" + clientInfo);
+    }
+
+    public String getClientInfo() {
+        return clientInfo;
     }
 
     public void exit() {
@@ -43,16 +48,20 @@ public class ClientHandler {
         readHandler.start();
     }
 
-    private void exitBySelf(){
+    private void exitBySelf() {
         exit();
-        closeNotify.onSelfClosed(this);
+        clientHandlerCallback.onSelfClosed(this);
     }
 
-    public interface CloseNotify{
+    public interface ClientHandlerCallback {
+        // 自身关闭的通知
         void onSelfClosed(ClientHandler handler);
+
+        // 收到消息时通知
+        void onNewMessageArrived(ClientHandler handler, String msg);
     }
 
-    class ClientReadHandler extends Thread{
+    class ClientReadHandler extends Thread {
 
         private boolean done = false;
         private final InputStream inputStream;
@@ -73,7 +82,7 @@ public class ClientHandler {
                 do {
                     // 客户端拿到一条数据
                     String str = socketInput.readLine();
-                    if(str == null){
+                    if (str == null) {
                         // 读取超时，IO异常
                         System.out.println("客户端无法读取数据");
                         // 退出当前客户端
@@ -82,9 +91,11 @@ public class ClientHandler {
                     }
                     // 打印到屏幕
                     System.out.println(str);
+                    // 通知TCPServer收到消息
+                    clientHandlerCallback.onNewMessageArrived(ClientHandler.this, str);
                 } while (!done);
             } catch (Exception e) {
-                if(!done) {
+                if (!done) {
                     System.out.println("连接异常断开");
                     ClientHandler.this.exitBySelf();
                 }
@@ -94,13 +105,13 @@ public class ClientHandler {
             }
         }
 
-        void exit(){
+        void exit() {
             done = true;
             CloseUtils.close(inputStream);
         }
     }
 
-    class ClientWriteHandler{
+    class ClientWriteHandler {
 
         private boolean done = false;
         private final PrintStream printStream;
@@ -111,17 +122,20 @@ public class ClientHandler {
             executorService = Executors.newSingleThreadExecutor();
         }
 
-        void exit(){
+        void exit() {
             done = true;
             CloseUtils.close(printStream);
             executorService.shutdownNow();
         }
 
         void send(String str) {
+            if(done){
+                return;
+            }
             executorService.execute(new WriteRunnable(str));
         }
 
-        class WriteRunnable implements Runnable{
+        class WriteRunnable implements Runnable {
 
             private final String msg;
 
@@ -131,7 +145,7 @@ public class ClientHandler {
 
             @Override
             public void run() {
-                if(done){
+                if (done) {
                     return;
                 }
                 try {
