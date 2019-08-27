@@ -89,7 +89,7 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
     @Override
     public void onNewMessageArrived(final ClientHandler handler, final String msg) {
         // 打印到屏幕
-        System.out.println("收到：" + handler.getClientInfo() + " : " + msg);
+        // System.out.println("收到：" + handler.getClientInfo() + " : " + msg);
         forwardingThreadPoolExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -143,8 +143,6 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
                             // 客户端构建异步线程
                             try {
                                 ClientHandler clientHandler = new ClientHandler(socketChannel, TCPServer.this);
-                                // 读取数据并打印
-                                clientHandler.readToPrint();
                                 synchronized (TCPServer.this) {
                                     clientHandlerList.add(clientHandler);
                                 }

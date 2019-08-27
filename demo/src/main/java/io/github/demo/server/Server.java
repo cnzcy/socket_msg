@@ -5,9 +5,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import io.github.demo.constants.TCPConstants;
+import io.github.demo.lib.core.IoContext;
+import io.github.demo.lib.impl.IoSelectorProvider;
 
 public class Server {
     public static void main(String[] args) throws IOException {
+        IoContext.setup()
+                .ioProvider(new IoSelectorProvider())
+                .start();
+
         TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER);
         boolean isSucceed = tcpServer.start();
         if (!isSucceed) {
@@ -26,5 +32,7 @@ public class Server {
 
         UDPProvider.stop();
         tcpServer.stop();
+
+        IoContext.close();
     }
 }
