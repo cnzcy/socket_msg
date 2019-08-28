@@ -64,6 +64,9 @@ public class SocketChannelAdapter implements Sender, Receiver, Closeable {
         }
     }
 
+    // 复现3：消息到达重复提醒，读消息时未设置取消监听
+    // private boolean runed;
+
     // 可读了
     private final IoProvider.HandleInputCallback inputCallback = new IoProvider.HandleInputCallback() {
         @Override
@@ -71,16 +74,28 @@ public class SocketChannelAdapter implements Sender, Receiver, Closeable {
             if (isClosed.get()) {
                 return;
             }
+
+            // 复现3：消息到达重复提醒，读消息时未设置取消监听
+            /*if (runed) {
+                return;
+            }
+            runed = true;
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }*/
+
             IoArgs args = new IoArgs();
             IoArgs.IoArgsEventListener listener = SocketChannelAdapter.this.receiveIoEventListener;
-            if(listener != null) {
+            if (listener != null) {
                 listener.onStarted(args);
             }
             // IoArgs中进行读操作，读完成后通知外部
             try {
                 if (args.read(channel) > 0 && listener != null) {
                     listener.onCompleted(args);
-                } else{
+                } else {
                     throw new IOException("不能读取数据");
                 }
             } catch (IOException e) {

@@ -67,6 +67,11 @@ public class IoSelectorProvider implements IoProvider {
                                 handleSelection(selectionKey, SelectionKey.OP_READ, inputCallbackMap, inputHandlerPool);
                             }
                         }
+
+                        // 复现3：消息到达重复提醒，读消息时未设置取消监听
+                        // 消息到达后，及时处理好。下次select()自然只收到一次消息，即使没有取消监听
+                        // System.out.println("有数据需要读取："+selectionKeys.size());
+
                         selectionKeys.clear();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -218,6 +223,8 @@ public class IoSelectorProvider implements IoProvider {
     private static void handleSelection(SelectionKey key, int keyOps,
                                         HashMap<SelectionKey, Runnable> map, ExecutorService pool) {
         // 取消当前连接的Selector，一直到处理完再重新注册回来
+        // 复现3：消息到达重复提醒，读消息时未设置取消监听
+        // 注释取消监听就可以演示出来
         key.interestOps(key.readyOps() & ~keyOps);
         Runnable runnable = null;
         try {
