@@ -88,6 +88,10 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
     // 接收线程调用，不能阻塞
     @Override
     public void onNewMessageArrived(final ClientHandler handler, final String msg) {
+        System.out.println("长度："+msg.length());
+        // 复现2：消息粘包
+        // 4条消息拼装成1条大的消息，就是粘包的效果了。我们把消息的间隔也就是分隔符打印成字符。
+        // System.out.println(msg.replace("\n", "-\\n-"));
         // 打印到屏幕
         // System.out.println("收到：" + handler.getClientInfo() + " : " + msg);
         forwardingThreadPoolExecutor.execute(new Runnable() {

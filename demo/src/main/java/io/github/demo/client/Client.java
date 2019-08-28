@@ -38,6 +38,12 @@ public class Client {
             // 发送到服务器
             tcpClient.send(str);
 
+            // 复现2：消息粘包
+            // 4条消息拼装成1条大的消息，就是粘包的效果了。我们把消息的间隔也就是分隔符打印成字符。
+            // tcpClient.send(str);
+            // tcpClient.send(str);
+            // tcpClient.send(str);
+
             if ("00bye00".equalsIgnoreCase(str)) {
                 break;
             }
