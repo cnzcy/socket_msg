@@ -5,8 +5,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+import io.github.demo.lib.core.IoContext;
+import io.github.demo.lib.impl.IoSelectorProvider;
+
 public class Client {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        IoContext.setup()
+                .ioProvider(new IoSelectorProvider())
+                .start();
+
         ServerInfo info = UDPSearcher.searchServer(10000);
         System.out.println("Server:" + info);
 
@@ -26,6 +33,8 @@ public class Client {
                 }
             }
         }
+
+        IoContext.close();
     }
 
     private static void write(TCPClient tcpClient) throws IOException {
@@ -40,9 +49,9 @@ public class Client {
 
             // 复现2：消息粘包
             // 4条消息拼装成1条大的消息，就是粘包的效果了。我们把消息的间隔也就是分隔符打印成字符。
-            // tcpClient.send(str);
-            // tcpClient.send(str);
-            // tcpClient.send(str);
+             tcpClient.send(str);
+             tcpClient.send(str);
+             tcpClient.send(str);
 
             if ("00bye00".equalsIgnoreCase(str)) {
                 break;

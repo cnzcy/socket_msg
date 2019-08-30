@@ -48,6 +48,14 @@ M1的数据仅仅读取部分到业务部分
 3.具体搜索 “复现”
 
  */
+
+/*
+
+固定头部的方式，相对于换行符，或特殊开头结尾字符，更有优势，不需要逐个字节去判断，也解决了消息不全和粘包的问题
+
+每次只需解析固定长度的头部即可
+
+ */
 public class Server {
     public static void main(String[] args) throws IOException {
         IoContext.setup()

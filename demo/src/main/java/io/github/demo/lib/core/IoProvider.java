@@ -39,6 +39,11 @@ public interface IoProvider extends Closeable {
             this.attach = attach;
         }
 
+        public final <T> T getAttach(){
+            @SuppressWarnings("unchecked") T attach = (T) this.attach;
+            return attach;
+        }
+
         /**
          * 可以写了，包括一个附件
          * @param attach
