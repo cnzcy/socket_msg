@@ -1,12 +1,14 @@
 package io.github.demo.lib.core;
 
+
+import java.io.InputStream;
+
 /**
  * 发送的包
  */
-public abstract class SendPacket extends Packet{
-    private boolean isCanceled;
+public abstract class SendPacket<T extends InputStream> extends Packet<T>{
 
-    public abstract byte[] bytes();
+    private boolean isCanceled;
 
     /**
      * 是否已取消
@@ -15,5 +17,4 @@ public abstract class SendPacket extends Packet{
     public boolean isCanceled(){
         return isCanceled;
     }
-
 }

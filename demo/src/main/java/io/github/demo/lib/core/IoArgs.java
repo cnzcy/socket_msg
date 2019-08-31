@@ -2,8 +2,12 @@ package io.github.demo.lib.core;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.WritableByteChannel;
 
 /**
  * 封装ByteBuffer
@@ -20,22 +24,40 @@ public class IoArgs {
     // 而实际发送的是1234567890
     // private byte[] byteBuffer = new byte[4];
     private int limit = 256;
-    private byte[] byteBuffer = new byte[256];
-    private ByteBuffer buffer = ByteBuffer.wrap(byteBuffer);
+    private ByteBuffer buffer = ByteBuffer.allocate(limit);
 
     // bytes中读数据，位移表示已经读的
-    public int readFrom(byte[] bytes, int offset) {
-        // 操作的size大小  最多可读  与   最大容纳大小
-        int size = Math.min(bytes.length - offset, buffer.remaining());
-        buffer.put(bytes, offset, size);
-        return size;
+    // 流放到channel中读取
+    public int readFrom(ReadableByteChannel channel) throws IOException {
+        // 从channel中读取，再放到buffer
+        startWriting();
+
+        int bytesProducted = 0;// 当前生产的数
+        while(buffer.hasRemaining()){// 还有容量
+            int len = channel.read(buffer);
+            if(len < 0){
+                throw new EOFException("读取结束符异常");
+            }
+            bytesProducted += len;
+        }
+
+        finishWriting();
+        return bytesProducted;
     }
 
     // 写数据到bytes中
-    public int writeTo(byte[] bytes, int offset) {
-        int size = Math.min(bytes.length - offset, buffer.remaining());
-        buffer.get(bytes, offset, size);
-        return size;
+    // Buffer 往 Channel中写数据
+    // 写数据到通道
+    public int writeTo(WritableByteChannel channel) throws IOException{
+        int bytesProducted = 0;// 当前生产的数
+        while(buffer.hasRemaining()){// 还有容量
+            int len = channel.write(buffer);
+            if(len < 0){
+                throw new EOFException("读取结束符异常");
+            }
+            bytesProducted += len;
+        }
+        return bytesProducted;
     }
 
     // Channel中读数据
@@ -92,8 +114,11 @@ public class IoArgs {
     }
 
     // 包的长度
+    // 写长度也需要开始和finish操作
     public void writeLength(int total) {
+        startWriting();
         buffer.putInt(total);
+        finishWriting();
     }
 
     // 读长度
@@ -106,9 +131,19 @@ public class IoArgs {
         return buffer.capacity();
     }
 
-    public interface IoArgsEventListener {
-        void onStarted(IoArgs args);
+    /**
+     * 数据生产者或消费者
+     */
+    public interface IoArgsEventProcessor {
 
-        void onCompleted(IoArgs args);
+        // 提供IoArgs
+        IoArgs provideIoArgs();
+
+        // 消费失败
+        void onConsumeFailed(IoArgs args, Exception e);
+
+        // 消费成功
+        void onConsumeCompleted(IoArgs args);
     }
+
 }

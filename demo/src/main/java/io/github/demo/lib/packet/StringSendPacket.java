@@ -1,13 +1,13 @@
 package io.github.demo.lib.packet;
 
-import java.io.IOException;
+import java.io.ByteArrayInputStream;
 
 import io.github.demo.lib.core.SendPacket;
 
 /**
  * 字符串的发送包
  */
-public class StringSendPacket extends SendPacket {
+public class StringSendPacket extends SendPacket<ByteArrayInputStream> {
 
     private final byte[] bytes;
 
@@ -17,12 +17,7 @@ public class StringSendPacket extends SendPacket {
     }
 
     @Override
-    public byte[] bytes() {
-        return bytes;
-    }
-
-    @Override
-    public void close() throws IOException {
-
+    protected ByteArrayInputStream createStream() {
+        return new ByteArrayInputStream(bytes);
     }
 }
