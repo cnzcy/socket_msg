@@ -1,23 +1,21 @@
 package io.github.demo.lib.packet;
 
-import java.io.ByteArrayInputStream;
-
-import io.github.demo.lib.core.SendPacket;
-
 /**
  * 字符串的发送包
  */
-public class StringSendPacket extends SendPacket<ByteArrayInputStream> {
+public class StringSendPacket extends BytesSendPacket {
 
-    private final byte[] bytes;
-
+    /**
+     * 字符串发送时就是Byte数组，所以直接得到Byte数组，并按照Byte的发送方式发送即可
+     *
+     * @param msg 字符串
+     */
     public StringSendPacket(String msg) {
-        this.bytes = msg.getBytes();
-        this.length = bytes.length;
+        super(msg.getBytes());
     }
 
     @Override
-    protected ByteArrayInputStream createStream() {
-        return new ByteArrayInputStream(bytes);
+    public byte type() {
+        return TYPE_MEMORY_STRING;
     }
 }

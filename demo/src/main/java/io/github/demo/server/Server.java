@@ -1,9 +1,11 @@
 package io.github.demo.server;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import io.github.demo.constants.Foo;
 import io.github.demo.constants.TCPConstants;
 import io.github.demo.lib.core.IoContext;
 import io.github.demo.lib.impl.IoSelectorProvider;
@@ -58,11 +60,12 @@ M1的数据仅仅读取部分到业务部分
  */
 public class Server {
     public static void main(String[] args) throws IOException {
+        File cachePath = Foo.getCacheDir("server");
         IoContext.setup()
                 .ioProvider(new IoSelectorProvider())
                 .start();
 
-        TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER);
+        TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER, cachePath);
         boolean isSucceed = tcpServer.start();
         if (!isSucceed) {
             System.out.println("Start TCP server failed!");
@@ -75,8 +78,13 @@ public class Server {
         String str;
         do{
             str = bufferedReader.readLine();
+            if("00bye00".equalsIgnoreCase(str)){
+                break;
+            }
+
+            // 发送字符串
             tcpServer.broadcast(str);
-        }while(!"00bye00".equalsIgnoreCase(str));
+        }while(true);
 
         UDPProvider.stop();
         tcpServer.stop();

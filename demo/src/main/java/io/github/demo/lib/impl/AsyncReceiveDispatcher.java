@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.demo.lib.CloseUtils;
 import io.github.demo.lib.core.IoArgs;
+import io.github.demo.lib.core.Packet;
 import io.github.demo.lib.core.ReceiveDispatcher;
 import io.github.demo.lib.core.ReceivePacket;
 import io.github.demo.lib.core.Receiver;
@@ -24,7 +25,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
 
     private IoArgs ioArgs = new IoArgs();
     // 当前接收的包
-    private ReceivePacket<?> packetTemp;
+    private ReceivePacket<?, ?> packetTemp;
 
     private WritableByteChannel packetChannel;
     private long total;
@@ -70,8 +71,11 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
     private void assemblePacket(IoArgs args) {
         if (packetTemp == null) {// 初始时
             int length = args.readLength();// 数据有多长是保存在前4字节中的
-            packetTemp = new StringReceivePacket(length);
+            // 接收的类型
+            byte type = length > 200 ? Packet.TYPE_STREAM_FILE : Packet.TYPE_MEMORY_STRING;
 
+            // 当前一个新的Packet到达
+            packetTemp = callback.onArrivedNewPacket(type, length);
             // 初始化通道
             packetChannel = Channels.newChannel(packetTemp.open());
             total = length;

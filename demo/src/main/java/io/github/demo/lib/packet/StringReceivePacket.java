@@ -1,34 +1,23 @@
 package io.github.demo.lib.packet;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
-import io.github.demo.lib.core.ReceivePacket;
 
 /**
- * 接收的字符串包
+ * 字符串接收包
  */
-public class StringReceivePacket extends ReceivePacket<ByteArrayOutputStream> {
+public class StringReceivePacket extends AbsByteArrayReceivePacket<String> {
 
-    private String string;
-
-    public StringReceivePacket(int len) {
-        length = len;
-    }
-
-    // 获取真实的String
-    public String string(){
-        return string;
+    public StringReceivePacket(long len) {
+        super(len);
     }
 
     @Override
-    protected void closeStream(ByteArrayOutputStream stream) throws IOException {
-        super.closeStream(stream);
-        string = new String(stream.toByteArray());
+    protected String buildEntity(ByteArrayOutputStream stream) {
+        return new String(stream.toByteArray());
     }
 
     @Override
-    protected ByteArrayOutputStream createStream() {
-        return new ByteArrayOutputStream((int) length);
+    public byte type() {
+        return TYPE_MEMORY_STRING;
     }
 }

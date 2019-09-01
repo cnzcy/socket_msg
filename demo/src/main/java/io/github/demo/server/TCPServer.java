@@ -1,5 +1,6 @@
 package io.github.demo.server;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -21,6 +22,7 @@ import io.github.demo.server.handler.ClientHandler;
 
 public class TCPServer implements ClientHandler.ClientHandlerCallback {
     private final int port;
+    private final File cachePath;
     private ClientListener mListener;
     // 只能保证添加删除时线程安全，不能保证遍历时
     private List<ClientHandler> clientHandlerList = Collections.synchronizedList(new ArrayList<ClientHandler>());
@@ -28,8 +30,9 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
     private Selector selector;
     private ServerSocketChannel server;
 
-    public TCPServer(int port) {
+    public TCPServer(int port, File cachePath) {
         this.port = port;
+        this.cachePath = cachePath;
         this.forwardingThreadPoolExecutor = Executors.newSingleThreadExecutor();
     }
 
@@ -146,7 +149,7 @@ public class TCPServer implements ClientHandler.ClientHandlerCallback {
 
                             // 客户端构建异步线程
                             try {
-                                ClientHandler clientHandler = new ClientHandler(socketChannel, TCPServer.this);
+                                ClientHandler clientHandler = new ClientHandler(socketChannel, TCPServer.this, cachePath);
                                 synchronized (TCPServer.this) {
                                     clientHandlerList.add(clientHandler);
                                 }
