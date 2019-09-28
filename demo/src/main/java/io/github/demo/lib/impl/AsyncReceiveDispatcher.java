@@ -1,35 +1,25 @@
 package io.github.demo.lib.impl;
 
 import java.io.IOException;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.github.demo.lib.CloseUtils;
 import io.github.demo.lib.core.IoArgs;
-import io.github.demo.lib.core.Packet;
 import io.github.demo.lib.core.ReceiveDispatcher;
 import io.github.demo.lib.core.ReceivePacket;
 import io.github.demo.lib.core.Receiver;
-import io.github.demo.lib.packet.StringReceivePacket;
 
 /**
  * 接收数据的调度
  */
-public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsEventProcessor {
+public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsEventProcessor , AsyncPacketWriter.PacketProvider {
 
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
-    // 接收者
+
     private final Receiver receiver;
     private final ReceivePacketCallback callback;
 
-    private IoArgs ioArgs = new IoArgs();
-    // 当前接收的包
-    private ReceivePacket<?, ?> packetTemp;
-
-    private WritableByteChannel packetChannel;
-    private long total;
-    private long position;
+    private AsyncPacketWriter writer = new AsyncPacketWriter(this);
 
     public AsyncReceiveDispatcher(Receiver receiver, ReceivePacketCallback callback) {
         this.receiver = receiver;
@@ -37,12 +27,42 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
         this.callback = callback;
     }
 
+    /**
+     * 开始进入接收方法
+     */
     @Override
     public void start() {
         registerReceive();
     }
 
-    // 开始接收操作
+    /**
+     * 停止接收数据
+     */
+    @Override
+    public void stop() {
+
+    }
+
+    /**
+     * 关闭操作，关闭相关流
+     */
+    @Override
+    public void close() {
+        if (isClosed.compareAndSet(false, true)) {
+            writer.close();
+        }
+    }
+
+    /**
+     * 自主发起的关闭操作，并且需要进行通知
+     */
+    private void closeAndNotify() {
+        CloseUtils.close(this);
+    }
+
+    /**
+     * 注册接收数据
+     */
     private void registerReceive() {
         try {
             receiver.postReceiveAsync();
@@ -51,92 +71,70 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher, IoArgs.IoArgsE
         }
     }
 
-    // 异常时关闭
-    private void closeAndNotify() {
-        CloseUtils.close(this);
-    }
-
-    @Override
-    public void stop() {
-
-    }
-
-    @Override
-    public void close() throws IOException {
-        if (isClosed.compareAndSet(false, true)) {
-            completePacket(false);
-        }
-    }
-
-    private void assemblePacket(IoArgs args) {
-        if (packetTemp == null) {// 初始时
-            int length = args.readLength();// 数据有多长是保存在前4字节中的
-            // 接收的类型
-            byte type = length > 200 ? Packet.TYPE_STREAM_FILE : Packet.TYPE_MEMORY_STRING;
-
-            // 当前一个新的Packet到达
-            packetTemp = callback.onArrivedNewPacket(type, length);
-            // 初始化通道
-            packetChannel = Channels.newChannel(packetTemp.open());
-            total = length;
-            position = 0;
-        }
-
-        // 开始读取，数据写到buffer
-        try {
-            int count = args.writeTo(packetChannel);// IoArgs写入到通道，写失败肯定抛异常
-            position += count;
-
-            if (position == total) {
-                // 读取完成了
-                completePacket(true);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            completePacket(false);
-        }
-    }
-
-    // 关闭并通知外层接收好了
-    private void completePacket(boolean isSuccessed) {
-        ReceivePacket packet = this.packetTemp;
-        CloseUtils.close(packet);
-        packetTemp = null;
-
-        WritableByteChannel channel = this.packetChannel;
-        CloseUtils.close(channel);
-        packetChannel = null;
-
-        if (packet != null) {
-            callback.onReceivePacketCompleted(packet);
-        }
-    }
-
+    /**
+     * 网络接收就绪，此时可以读取数据，需要返回一个容器用于容纳数据
+     *
+     * @return 用以容纳数据的IoArgs
+     */
     @Override
     public IoArgs provideIoArgs() {
-        IoArgs args = ioArgs;// 再从网络读取时复用了
-        // 接收数据前
-        int receiveSize;// 可以接收的数据大小
-        if (packetTemp == null) {
-            // 先接收数据头
-            receiveSize = 4;// int 类型
-        } else {
-            // 还需要接收的大小，和还剩的容量
-            receiveSize = (int) Math.min(total - position, args.capacity());
-        }
-        // 设置本次接收数据大小
-        args.limit(receiveSize);
-        return args;
+        IoArgs ioArgs = writer.takeIoArgs();
+        // 一份新的IoArgs需要调用一次开始写入数据的操作
+        ioArgs.startWriting();
+        return ioArgs;
     }
 
+    /**
+     * 接收数据失败
+     *
+     * @param args IoArgs
+     * @param e    异常信息
+     */
     @Override
     public void onConsumeFailed(IoArgs args, Exception e) {
         e.printStackTrace();
     }
 
+    /**
+     * 接收数据成功
+     *
+     * @param args IoArgs
+     */
     @Override
     public void onConsumeCompleted(IoArgs args) {
-        assemblePacket(args);
+        if (isClosed.get()) {
+            return;
+        }
+
+        // 消费数据之前标示args数据填充完成，
+        // 改变未可读取数据状态
+        args.finishWriting();
+
+        // 有数据则重复消费
+        do {
+            writer.consumeIoArgs(args);
+        } while (args.remained() && !isClosed.get());
         registerReceive();
     }
+
+    /**
+     * 构建Packet操作，根据类型、长度构建一份用于接收数据的Packet
+     */
+    @Override
+    public ReceivePacket takePacket(byte type, long length, byte[] headerInfo) {
+        return callback.onArrivedNewPacket(type, length);
+    }
+
+    /**
+     * 当Packet接收数据完成或终止时回调
+     *
+     * @param packet    接收包
+     * @param isSucceed 是否成功接收完成
+     */
+    @Override
+    public void completedPacket(ReceivePacket packet, boolean isSucceed) {
+        CloseUtils.close(packet);
+        callback.onReceivePacketCompleted(packet);
+    }
+
 }
